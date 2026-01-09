@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-canvas text-ink font-body;
+  }
+  
+  ::selection {
+    @apply bg-ink text-canvas;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-150 shadow-button;
+  }
+  
+  .btn-primary {
+    @apply btn bg-ink text-canvas hover:bg-ink/90 active:scale-[0.98];
+  }
+  
+  .btn-secondary {
+    @apply btn bg-surface text-ink border border-border hover:border-ink/20 active:scale-[0.98];
+  }
+  
+  .btn-ghost {
+    @apply btn shadow-none text-muted hover:text-ink hover:bg-ink/5;
+  }
+  
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-danger/90 active:scale-[0.98];
+  }
+  
+  .card {
+    @apply bg-surface rounded-xl border border-border shadow-card transition-shadow duration-200;
+  }
+  
+  .card-interactive {
+    @apply card hover:shadow-card-hover cursor-pointer;
+  }
+  
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-border bg-surface text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-ink/10 focus:border-ink/30 transition-all duration-150;
+  }
+  
+  .label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-ebay {
+    @apply badge bg-ebay-light text-ebay;
+  }
+  
+  .badge-facebook {
+    @apply badge bg-facebook-light text-facebook;
+  }
+  
+  .badge-craigslist {
+    @apply badge bg-craigslist-light text-craigslist;
+  }
+  
+  .badge-success {
+    @apply badge bg-green-100 text-success;
+  }
+  
+  .badge-warning {
+    @apply badge bg-yellow-100 text-warning;
+  }
+  
+  .badge-danger {
+    @apply badge bg-red-100 text-danger;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full hover:bg-muted/40;
+}
+
+/* Image upload drag state */
+.drag-active {
+  @apply border-ink bg-ink/5;
+}
