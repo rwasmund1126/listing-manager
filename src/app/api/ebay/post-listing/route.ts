@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof EbayApiError) {
       return NextResponse.json(
-        { error: `eBay API error: ${error.message}`, details: error.details },
-        { status: error.statusCode || 500 }
+        { error: `eBay API error: ${error.message}`, errors: error.errors },
+        { status: error.httpStatus || 500 }
       )
     }
 

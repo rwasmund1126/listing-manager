@@ -536,7 +536,7 @@ export default function ItemDetailPage() {
                       onChange={(e) =>
                         setEbayForm({
                           ...ebayForm,
-                          duration: e.target.value as any,
+                          duration: e.target.value as 'DAYS_3' | 'DAYS_5' | 'DAYS_7' | 'DAYS_10' | 'GTC',
                         })
                       }
                       className="input w-full"
