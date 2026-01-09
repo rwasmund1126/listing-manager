@@ -41,7 +41,6 @@ const EBAY_SCOPES = [
   'https://api.ebay.com/oauth/api_scope/sell.account',
   'https://api.ebay.com/oauth/api_scope/sell.account.readonly',
   'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
-  'https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly',
 ]
 
 export function getEbayConfig(): EbayConfig {
