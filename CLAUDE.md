@@ -1,6 +1,6 @@
 # Listing Manager
 
-A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions, **direct eBay posting via API**, AI-powered category prediction, category search/autocomplete, live listing editing, client-side image background removal, and **in-app camera capture**.
+A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions, **direct eBay posting via API**, AI-powered category prediction, category search/autocomplete, live listing editing, client-side image background removal, **in-app camera capture**, and **guided AI regeneration**.
 
 ## Tech Stack
 
@@ -29,12 +29,12 @@ src/
 │   ├── layout.tsx                  # Root layout
 │   ├── globals.css                 # Tailwind + custom styles
 │   ├── items/
-│   │   ├── new/page.tsx            # New item wizard (4 steps) + background removal
+│   │   ├── new/page.tsx            # New item wizard (3 steps) + background removal + guided regeneration
 │   │   └── [id]/page.tsx           # Item detail + eBay posting/editing modals
 │   ├── settings/page.tsx           # eBay OAuth connection management
 │   ├── privacy/page.tsx            # Privacy policy (required for eBay OAuth)
 │   └── api/
-│       ├── generate-listings/route.ts  # OpenAI API integration
+│       ├── generate-listings/route.ts  # OpenAI API integration (supports optional guidance)
 │       ├── optimize-image/route.ts     # Sharp image processing
 │       ├── predict-category/route.ts    # AI category prediction (GPT-4o)
 │       └── ebay/
@@ -256,6 +256,12 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 - **Live listing editing**: Update price/description on posted listings via Inventory API (GET-then-PUT merge)
 - **Background removal**: Client-side `@imgly/background-removal` (ONNX, ~30MB first download, cached after)
 - **In-app camera**: Native `MediaDevices` API with multi-shot, camera flip, and thumbnail preview
+- **Guided regeneration**: Optional seller guidance text injected into GPT-4o prompt when regenerating descriptions
+
+### New Item Wizard (3 Steps)
+1. **Item Details** — Photos (upload/camera/background removal), description, condition, platform selection
+2. **Generate** — Summary review + generate button
+3. **Review** — Review listings, optional guidance textarea for AI, inline regenerate, save
 
 ### Other Platforms
 - **Facebook/Craigslist**: No APIs available; using copy/paste workflow to stay TOS-compliant
@@ -275,9 +281,9 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 
 **eBay requirements**: Max 12 images per listing, automatically handled in posting flow.
 
-**Background removal**: Available on image previews in the upload wizard (Step 1). Hover over an image to see "Remove BG" button. Uses `@imgly/background-removal` (client-side ONNX). First use downloads ~30MB model, cached after. Undo available to restore original.
+**Background removal**: Available on image previews in the item details step. Hover over an image to see "Remove BG" button. Uses `@imgly/background-removal` (client-side ONNX). First use downloads ~30MB model, cached after. Undo available to restore original.
 
-**In-app camera**: "Take Photo" button in Step 1 opens a full-screen camera modal (`CameraModal` component). Uses `navigator.mediaDevices.getUserMedia` (native browser API, no dependencies). Features: multi-shot capture (up to 3 photos), camera flip (front/rear), thumbnail strip, front-camera mirror. Defaults to rear camera (`facingMode: 'environment'`). Requires HTTPS (handled by Vercel; localhost exempt). Button hidden on browsers without camera support. Captured photos are standard `File` objects that integrate with existing upload flow, background removal, and AI generation.
+**In-app camera**: "Take Photo" button in the item details step opens a full-screen camera modal (`CameraModal` component). Uses `navigator.mediaDevices.getUserMedia` (native browser API, no dependencies). Features: multi-shot capture (up to 3 photos), camera flip (front/rear), thumbnail strip, front-camera mirror. Defaults to rear camera (`facingMode: 'environment'`). Requires HTTPS (handled by Vercel; localhost exempt). Button hidden on browsers without camera support. Captured photos are standard `File` objects that integrate with existing upload flow, background removal, and AI generation.
 
 ## Listing Workflow
 
@@ -335,7 +341,7 @@ All eBay errors include detailed messages and recovery instructions.
 - `GET /api/ebay/category-suggestions?q=` - Search eBay categories (uses application token)
 
 ### AI:
-- `POST /api/generate-listings` - Generate AI descriptions for all platforms
+- `POST /api/generate-listings` - Generate AI descriptions for all platforms (accepts optional `guidance` field)
 - `POST /api/predict-category` - AI category prediction (GPT-4o, returns top 3)
 
 ### Core:
@@ -365,7 +371,7 @@ All eBay errors include detailed messages and recovery instructions.
 - Status badges: `badge-success`, `badge-warning`
 
 ### Data Flow:
-- `generate-listings` API expects FormData (includes image files)
+- `generate-listings` API expects FormData (includes image files + optional `guidance` string)
 - eBay posting expects JSON with listingId, categoryId, format, pricing
 - eBay updating expects JSON with listingId, price?, description?
 - Item images are Supabase Storage URLs (not base64 or blobs)
@@ -391,6 +397,9 @@ Completed:
 - [x] Edit/update eBay listings (price + description via Inventory API)
 - [x] Image background removal/enhancement (@imgly/background-removal, client-side)
 - [x] In-app camera capture (MediaDevices API, multi-shot, camera flip)
+- [x] Guided AI regeneration (optional seller guidance in regeneration prompt)
+- [x] Streamlined new item wizard (3 steps, combined photos + details)
+- [x] Mobile-responsive item detail layout
 
 Remaining:
 - [ ] Bulk posting to eBay
