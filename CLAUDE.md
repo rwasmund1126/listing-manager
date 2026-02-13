@@ -1,6 +1,6 @@
 # Listing Manager
 
-A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions, **direct eBay posting via API**, AI-powered category prediction, category search/autocomplete, live listing editing, and client-side image background removal.
+A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions, **direct eBay posting via API**, AI-powered category prediction, category search/autocomplete, live listing editing, client-side image background removal, and **in-app camera capture**.
 
 ## Tech Stack
 
@@ -45,6 +45,8 @@ src/
 │           ├── post-listing/route.ts       # Create and publish eBay listing
 │           ├── update-listing/route.ts     # Edit live eBay listings
 │           └── category-suggestions/route.ts # eBay category search
+├── components/
+│   └── CameraModal.tsx             # In-app camera with multi-shot capture
 ├── lib/
 │   ├── supabase.ts                 # Supabase client
 │   ├── database.types.ts           # TypeScript types + enums
@@ -253,6 +255,7 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 - **AI category prediction**: GPT-4o predicts top 3 eBay categories from item description
 - **Live listing editing**: Update price/description on posted listings via Inventory API (GET-then-PUT merge)
 - **Background removal**: Client-side `@imgly/background-removal` (ONNX, ~30MB first download, cached after)
+- **In-app camera**: Native `MediaDevices` API with multi-shot, camera flip, and thumbnail preview
 
 ### Other Platforms
 - **Facebook/Craigslist**: No APIs available; using copy/paste workflow to stay TOS-compliant
@@ -273,6 +276,8 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 **eBay requirements**: Max 12 images per listing, automatically handled in posting flow.
 
 **Background removal**: Available on image previews in the upload wizard (Step 1). Hover over an image to see "Remove BG" button. Uses `@imgly/background-removal` (client-side ONNX). First use downloads ~30MB model, cached after. Undo available to restore original.
+
+**In-app camera**: "Take Photo" button in Step 1 opens a full-screen camera modal (`CameraModal` component). Uses `navigator.mediaDevices.getUserMedia` (native browser API, no dependencies). Features: multi-shot capture (up to 3 photos), camera flip (front/rear), thumbnail strip, front-camera mirror. Defaults to rear camera (`facingMode: 'environment'`). Requires HTTPS (handled by Vercel; localhost exempt). Button hidden on browsers without camera support. Captured photos are standard `File` objects that integrate with existing upload flow, background removal, and AI generation.
 
 ## Listing Workflow
 
@@ -366,6 +371,7 @@ All eBay errors include detailed messages and recovery instructions.
 - Item images are Supabase Storage URLs (not base64 or blobs)
 - Image URLs for eBay are resolved via `getImageUrl()` from `src/lib/supabase.ts`
 - `@imgly/background-removal` is dynamically imported to avoid SSR issues
+- `CameraModal` is a standalone component in `src/components/` — first extracted component
 
 ### Testing:
 - Local: `npm run dev` on `localhost:3000`
@@ -384,6 +390,7 @@ Completed:
 - [x] Category prediction using AI (GPT-4o, top 3 predictions)
 - [x] Edit/update eBay listings (price + description via Inventory API)
 - [x] Image background removal/enhancement (@imgly/background-removal, client-side)
+- [x] In-app camera capture (MediaDevices API, multi-shot, camera flip)
 
 Remaining:
 - [ ] Bulk posting to eBay
