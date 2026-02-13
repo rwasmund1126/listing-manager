@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -15,11 +15,13 @@ import {
   CheckCircle,
   Eraser,
   Undo2,
+  Camera,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { ItemCondition, Platform } from '@/lib/database.types'
 import { conditionLabels, platformLabels } from '@/lib/database.types'
 import Image from 'next/image'
+import CameraModal from '@/components/CameraModal'
 
 type Step = 'images' | 'details' | 'generate' | 'review'
 
@@ -51,6 +53,14 @@ export default function NewItemPage() {
   const [generatedListings, setGeneratedListings] = useState<GeneratedListing[]>([])
   const [saving, setSaving] = useState(false)
   const [copiedPlatform, setCopiedPlatform] = useState<Platform | null>(null)
+
+  // Camera state
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraSupported, setCameraSupported] = useState(false)
+
+  useEffect(() => {
+    setCameraSupported(!!navigator?.mediaDevices?.getUserMedia)
+  }, [])
 
   // Background removal state
   const [bgRemovalProcessing, setBgRemovalProcessing] = useState<Set<number>>(new Set())
@@ -182,6 +192,13 @@ export default function NewItemPage() {
     if (validFiles.length === 0) return
 
     const newImages = [...images, ...validFiles].slice(0, 3)
+    setImages(newImages)
+    const urls = newImages.map(file => URL.createObjectURL(file))
+    setImageUrls(urls)
+  }, [images])
+
+  const handleCameraCapture = useCallback((capturedFiles: File[]) => {
+    const newImages = [...images, ...capturedFiles].slice(0, 3)
     setImages(newImages)
     const urls = newImages.map(file => URL.createObjectURL(file))
     setImageUrls(urls)
@@ -348,18 +365,37 @@ export default function NewItemPage() {
             }`}
           >
             {images.length < 3 && (
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Upload size={32} className="mx-auto text-muted mb-3" />
-                <p className="font-medium text-ink mb-1">Drop images here or click to upload</p>
-                <p className="text-sm text-muted">JPEG, PNG, WebP, GIF • {3 - images.length} more allowed</p>
-              </label>
+              <div className="space-y-4">
+                <label className="cursor-pointer block">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <Upload size={32} className="mx-auto text-muted mb-3" />
+                  <p className="font-medium text-ink mb-1">Drop images here or click to upload</p>
+                  <p className="text-sm text-muted">JPEG, PNG, WebP, GIF • {3 - images.length} more allowed</p>
+                </label>
+                {cameraSupported && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-sm text-muted">or</span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCameraOpen(true)}
+                      className="btn-secondary mx-auto"
+                    >
+                      <Camera size={18} />
+                      Take Photo
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -630,6 +666,12 @@ export default function NewItemPage() {
           </div>
         </div>
       )}
+      <CameraModal
+        isOpen={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+        maxPhotos={3 - images.length}
+      />
     </div>
   )
 }

@@ -1,13 +1,15 @@
 # Listing Manager
 
-A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions and **direct eBay posting via API**.
+A tool for managing online marketplace listings across eBay, Facebook Marketplace, and Craigslist with AI-generated descriptions, **direct eBay posting via API**, AI-powered category prediction, category search/autocomplete, live listing editing, and client-side image background removal.
 
 ## Tech Stack
 
 - **Next.js 15** with App Router
 - **Supabase** for database (Postgres) and file storage
 - **OpenAI API** (GPT-4o) for description generation
-- **eBay Inventory API** for direct listing creation and management
+- **eBay Inventory API** for direct listing creation, editing, and management
+- **eBay Commerce Taxonomy API** for category search/autocomplete
+- **@imgly/background-removal** for client-side image background removal (ONNX)
 - **Tailwind CSS** for styling
 - **TypeScript** throughout
 - **Vercel** for deployment
@@ -27,33 +29,37 @@ src/
 │   ├── layout.tsx                  # Root layout
 │   ├── globals.css                 # Tailwind + custom styles
 │   ├── items/
-│   │   ├── new/page.tsx            # New item wizard (4 steps)
-│   │   └── [id]/page.tsx           # Item detail + eBay posting modal
+│   │   ├── new/page.tsx            # New item wizard (4 steps) + background removal
+│   │   └── [id]/page.tsx           # Item detail + eBay posting/editing modals
 │   ├── settings/page.tsx           # eBay OAuth connection management
 │   ├── privacy/page.tsx            # Privacy policy (required for eBay OAuth)
 │   └── api/
 │       ├── generate-listings/route.ts  # OpenAI API integration
 │       ├── optimize-image/route.ts     # Sharp image processing
+│       ├── predict-category/route.ts    # AI category prediction (GPT-4o)
 │       └── ebay/
-│           ├── auth/route.ts           # Initiate eBay OAuth flow
-│           ├── callback/route.ts       # Handle eBay OAuth callback
-│           ├── status/route.ts         # Check eBay connection status
-│           ├── disconnect/route.ts     # Disconnect eBay account
-│           └── post-listing/route.ts   # Create and publish eBay listing
+│           ├── auth/route.ts               # Initiate eBay OAuth flow
+│           ├── callback/route.ts           # Handle eBay OAuth callback
+│           ├── status/route.ts             # Check eBay connection status
+│           ├── disconnect/route.ts         # Disconnect eBay account
+│           ├── post-listing/route.ts       # Create and publish eBay listing
+│           ├── update-listing/route.ts     # Edit live eBay listings
+│           └── category-suggestions/route.ts # eBay category search
 ├── lib/
 │   ├── supabase.ts                 # Supabase client
 │   ├── database.types.ts           # TypeScript types + enums
 │   └── ebay/
 │       ├── index.ts                # eBay library exports
 │       ├── config.ts               # eBay API configuration
-│       ├── auth.ts                 # OAuth token management
+│       ├── auth.ts                 # OAuth token management + application token
 │       ├── client.ts               # eBay API client with retry logic
 │       ├── errors.ts               # eBay-specific error types
-│       └── listing.ts              # Inventory API helpers
+│       └── listing.ts              # Inventory API helpers (create, update, publish)
 supabase/
 ├── schema.sql                      # Initial database schema
 └── migrations/
-    └── 002_ebay_integration.sql    # eBay integration tables/columns
+    ├── 002_ebay_integration.sql    # eBay integration tables/columns
+    └── 003_listing_updates.sql     # Add ebay_offer_id and ebay_sku columns
 ```
 
 ## Key Commands
@@ -120,6 +126,8 @@ EBAY_ENVIRONMENT=production                   # or 'sandbox' for testing
 - `sold_at` (timestamptz)
 - **eBay-specific columns:**
   - `ebay_listing_id` (text) - eBay's listing ID
+  - `ebay_offer_id` (text) - eBay offer ID (for updates)
+  - `ebay_sku` (text) - eBay inventory item SKU (for updates)
   - `listing_format` (text) - 'fixed_price' or 'auction'
   - `auction_duration` (int) - auction days (3, 5, 7, 10)
   - `starting_bid` (decimal) - auction starting price
@@ -157,6 +165,7 @@ Currently granted (configured in eBay Developer Portal):
 - [x] Create Supabase project
 - [x] Run `supabase/schema.sql` in Supabase SQL Editor
 - [x] Run `supabase/migrations/002_ebay_integration.sql`
+- [x] Run `supabase/migrations/003_listing_updates.sql`
 - [x] Add RLS policies (see below)
 - [x] Create `item-images` storage bucket (public)
 - [x] Get OpenAI API key from platform.openai.com/api-keys
@@ -239,6 +248,11 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 - **Inventory Item + Offer workflow**: eBay's recommended approach for listing creation
 - **Fixed Price & Auction support**: Both listing formats supported
 - **Auto-token refresh**: Tokens refresh automatically with 5-minute buffer before expiry
+- **Application token**: Client credentials grant for public APIs (Taxonomy) — no user consent needed
+- **Category search**: eBay Commerce Taxonomy API with debounced autocomplete
+- **AI category prediction**: GPT-4o predicts top 3 eBay categories from item description
+- **Live listing editing**: Update price/description on posted listings via Inventory API (GET-then-PUT merge)
+- **Background removal**: Client-side `@imgly/background-removal` (ONNX, ~30MB first download, cached after)
 
 ### Other Platforms
 - **Facebook/Craigslist**: No APIs available; using copy/paste workflow to stay TOS-compliant
@@ -258,6 +272,8 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 
 **eBay requirements**: Max 12 images per listing, automatically handled in posting flow.
 
+**Background removal**: Available on image previews in the upload wizard (Step 1). Hover over an image to see "Remove BG" button. Uses `@imgly/background-removal` (client-side ONNX). First use downloads ~30MB model, cached after. Undo available to restore original.
+
 ## Listing Workflow
 
 ### Standard Flow (FB/Craigslist):
@@ -268,20 +284,22 @@ Edit `buildPrompt()` function in `src/app/api/generate-listings/route.ts`.
 ### eBay Direct Posting Flow:
 1. **Ready** - Listing generated
 2. **Click "Post to eBay"** - Opens modal
-3. **Select category** - Enter eBay category ID
+3. **Select category** - AI suggests top 3 categories, or search/type manually
 4. **Choose format** - Fixed Price or Auction
 5. **Set pricing** - Price, starting bid (auctions)
 6. **Post** - Creates inventory item, offer, and publishes live
-7. **Posted** - Status auto-updates, eBay listing ID saved
+7. **Posted** - Status auto-updates, eBay listing/offer/SKU IDs saved
 8. **View on eBay** - Direct link to live listing
+9. **Edit** - Update price/description on live listing via Edit modal
 
 The ⋮ menu next to each listing's price shows status actions.
 
-## eBay Category IDs
+## eBay Category Selection
 
-Find category IDs at:
-- **eBay Category Browser**: https://www.ebay.com/sellercenter/resources/category-ids
-- **API**: Use Commerce Taxonomy API (future enhancement)
+Categories can be selected three ways:
+1. **AI Prediction** - GPT-4o suggests top 3 categories when the eBay modal opens (clickable chips)
+2. **Search Autocomplete** - Type to search eBay's Taxonomy API with debounced requests (300ms)
+3. **Manual Entry** - Fall back to browsing https://www.ebay.com/sellercenter/resources/category-ids
 
 Common categories:
 - Women's Clothing: `15724`
@@ -307,10 +325,15 @@ All eBay errors include detailed messages and recovery instructions.
 - `GET /api/ebay/callback` - OAuth callback handler
 - `GET /api/ebay/status` - Check connection status
 - `POST /api/ebay/disconnect` - Remove stored tokens
-- `POST /api/ebay/post-listing` - Create and publish listing
+- `POST /api/ebay/post-listing` - Create and publish listing (stores offer ID + SKU)
+- `POST /api/ebay/update-listing` - Edit live listing (price, description)
+- `GET /api/ebay/category-suggestions?q=` - Search eBay categories (uses application token)
+
+### AI:
+- `POST /api/generate-listings` - Generate AI descriptions for all platforms
+- `POST /api/predict-category` - AI category prediction (GPT-4o, returns top 3)
 
 ### Core:
-- `POST /api/generate-listings` - Generate AI descriptions for all platforms
 - `POST /api/optimize-image` - Process and optimize uploaded images
 
 ## Notes for Claude Code
@@ -324,9 +347,12 @@ All eBay errors include detailed messages and recovery instructions.
 ### eBay Integration:
 - OAuth tokens stored in `ebay_tokens` table (one row, single user)
 - Tokens auto-refresh via `getValidAccessToken()` in `src/lib/ebay/auth.ts`
+- Application token via `getApplicationToken()` for public APIs (Taxonomy) — cached in-memory
 - All eBay API calls go through `src/lib/ebay/client.ts` helpers
 - Error handling via custom error classes in `src/lib/ebay/errors.ts`
 - Inventory API workflow: Create Inventory Item → Create Offer → Publish Offer
+- Update workflow: GET current state → merge updates → PUT back (both inventory item and offer)
+- Offer ID and SKU stored in DB on post for subsequent edits
 
 ### Styling:
 - Use existing component classes from `globals.css` before adding new styles
@@ -336,7 +362,10 @@ All eBay errors include detailed messages and recovery instructions.
 ### Data Flow:
 - `generate-listings` API expects FormData (includes image files)
 - eBay posting expects JSON with listingId, categoryId, format, pricing
+- eBay updating expects JSON with listingId, price?, description?
 - Item images are Supabase Storage URLs (not base64 or blobs)
+- Image URLs for eBay are resolved via `getImageUrl()` from `src/lib/supabase.ts`
+- `@imgly/background-removal` is dynamically imported to avoid SSR issues
 
 ### Testing:
 - Local: `npm run dev` on `localhost:3000`
@@ -350,14 +379,16 @@ All eBay errors include detailed messages and recovery instructions.
 
 ## Future Enhancements
 
-Potential features to add:
-- [ ] eBay category search/autocomplete
+Completed:
+- [x] eBay category search/autocomplete (Taxonomy API + application token)
+- [x] Category prediction using AI (GPT-4o, top 3 predictions)
+- [x] Edit/update eBay listings (price + description via Inventory API)
+- [x] Image background removal/enhancement (@imgly/background-removal, client-side)
+
+Remaining:
 - [ ] Bulk posting to eBay
-- [ ] Edit/update eBay listings
 - [ ] eBay listing analytics (views, watchers)
 - [ ] Shipping policy configuration
 - [ ] Multi-user support with Supabase Auth
 - [ ] eBay order management
 - [ ] Automated repricing based on eBay sold listings API
-- [ ] Image background removal/enhancement
-- [ ] Category prediction using AI
