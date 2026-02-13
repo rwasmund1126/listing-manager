@@ -16,6 +16,7 @@ import {
   Eraser,
   Undo2,
   Camera,
+  RefreshCw,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { ItemCondition, Platform } from '@/lib/database.types'
@@ -53,6 +54,7 @@ export default function NewItemPage() {
   const [generatedListings, setGeneratedListings] = useState<GeneratedListing[]>([])
   const [saving, setSaving] = useState(false)
   const [copiedPlatform, setCopiedPlatform] = useState<Platform | null>(null)
+  const [guidance, setGuidance] = useState('')
 
   // Camera state
   const [cameraOpen, setCameraOpen] = useState(false)
@@ -219,6 +221,9 @@ export default function NewItemPage() {
       formData.append('briefDescription', briefDescription)
       formData.append('condition', condition)
       formData.append('platforms', JSON.stringify(selectedPlatforms))
+      if (guidance.trim()) {
+        formData.append('guidance', guidance.trim())
+      }
       images.forEach((img, i) => formData.append(`image${i}`, img))
 
       const response = await fetch('/api/generate-listings', {
@@ -641,28 +646,53 @@ export default function NewItemPage() {
             </div>
           ))}
 
-          <div className="flex justify-between pt-4">
-            <button onClick={() => setStep('generate')} className="btn-secondary">
-              <ArrowLeft size={18} />
-              Regenerate
-            </button>
-            <button
-              onClick={saveAndPost}
-              disabled={saving}
-              className="btn-primary"
-            >
-              {saving ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check size={18} />
-                  Save Item
-                </>
-              )}
-            </button>
+          <div className="card p-4">
+            <label className="block text-sm font-medium text-muted mb-2">
+              Guidance for AI (optional)
+            </label>
+            <textarea
+              value={guidance}
+              onChange={(e) => setGuidance(e.target.value)}
+              placeholder="e.g., Don't mention the brand, the color is navy not black, make the description shorter..."
+              className="input w-full mb-3"
+              rows={2}
+            />
+            <div className="flex justify-between">
+              <button
+                onClick={generateListings}
+                disabled={generating}
+                className="btn-secondary"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Regenerating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={18} />
+                    Regenerate
+                  </>
+                )}
+              </button>
+              <button
+                onClick={saveAndPost}
+                disabled={saving}
+                className="btn-primary"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={18} />
+                    Save Item
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

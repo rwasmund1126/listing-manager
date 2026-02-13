@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     const briefDescription = formData.get('briefDescription') as string
     const condition = formData.get('condition') as ItemCondition
     const platformsRaw = formData.get('platforms') as string
+    const guidance = (formData.get('guidance') as string) || ''
 
     // Validate required fields
     if (!briefDescription || typeof briefDescription !== 'string') {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the prompt
-    const prompt = buildPrompt(briefDescription, condition, platforms)
+    const prompt = buildPrompt(briefDescription, condition, platforms, guidance)
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -96,9 +97,10 @@ export async function POST(request: NextRequest) {
 }
 
 function buildPrompt(
-  briefDescription: string, 
-  condition: ItemCondition, 
-  platforms: Platform[]
+  briefDescription: string,
+  condition: ItemCondition,
+  platforms: Platform[],
+  guidance: string = ''
 ): string {
   const platformInstructions = platforms.map(p => {
     switch (p) {
@@ -127,7 +129,7 @@ ${platformInstructions}
 4. Include relevant keywords naturally
 5. For kids' items, mention size clearly
 6. For clothing/shoes, mention brand if recognizable
-
+${guidance ? `\n**Additional Guidance from Seller:**\n${guidance}\n\nPlease follow this guidance carefully when generating the listings.\n` : ''}
 **Response Format:**
 For each platform, provide the response in this exact format:
 
