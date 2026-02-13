@@ -24,7 +24,7 @@ import { conditionLabels, platformLabels } from '@/lib/database.types'
 import Image from 'next/image'
 import CameraModal from '@/components/CameraModal'
 
-type Step = 'images' | 'details' | 'generate' | 'review'
+type Step = 'details' | 'generate' | 'review'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -44,7 +44,7 @@ interface GeneratedListing {
 
 export default function NewItemPage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('images')
+  const [step, setStep] = useState<Step>('details')
   const [images, setImages] = useState<File[]>([])
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [briefDescription, setBriefDescription] = useState('')
@@ -336,18 +336,18 @@ export default function NewItemPage() {
         <div>
           <h1 className="font-display text-2xl text-ink">New Item</h1>
           <p className="text-muted text-sm">
-            Step {['images', 'details', 'generate', 'review'].indexOf(step) + 1} of 4
+            Step {['details', 'generate', 'review'].indexOf(step) + 1} of 3
           </p>
         </div>
       </header>
 
       {/* Progress bar */}
       <div className="flex gap-2 mb-8">
-        {(['images', 'details', 'generate', 'review'] as Step[]).map((s, i) => (
+        {(['details', 'generate', 'review'] as Step[]).map((s, i) => (
           <div
             key={s}
             className={`h-1 flex-1 rounded-full transition-colors ${
-              ['images', 'details', 'generate', 'review'].indexOf(step) >= i
+              ['details', 'generate', 'review'].indexOf(step) >= i
                 ? 'bg-ink'
                 : 'bg-border'
             }`}
@@ -356,120 +356,102 @@ export default function NewItemPage() {
       </div>
 
       {/* Step content */}
-      {step === 'images' && (
-        <div className="card p-6 animate-slide-up">
-          <h2 className="font-display text-xl mb-2">Upload Photos</h2>
-          <p className="text-muted mb-6">Add up to 3 photos of your item</p>
-
-          {/* Upload area */}
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-              images.length < 3 ? 'border-border hover:border-ink/30 cursor-pointer' : 'border-border/50'
-            }`}
-          >
-            {images.length < 3 && (
-              <div className="space-y-4">
-                <label className="cursor-pointer block">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    multiple
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <Upload size={32} className="mx-auto text-muted mb-3" />
-                  <p className="font-medium text-ink mb-1">Drop images here or click to upload</p>
-                  <p className="text-sm text-muted">JPEG, PNG, WebP, GIF • {3 - images.length} more allowed</p>
-                </label>
-                {cameraSupported && (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-px bg-border" />
-                      <span className="text-sm text-muted">or</span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCameraOpen(true)}
-                      className="btn-secondary mx-auto"
-                    >
-                      <Camera size={18} />
-                      Take Photo
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Image previews */}
-          {imageUrls.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              {imageUrls.map((url, i) => (
-                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-border group">
-                  <Image src={url} alt="" fill className="object-cover" />
-                  {/* Processing overlay */}
-                  {bgRemovalProcessing.has(i) && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
-                      <Loader2 size={24} className="text-white animate-spin" />
-                      <span className="text-white text-xs">Removing BG...</span>
-                    </div>
-                  )}
-                  {/* Top-right: remove image */}
-                  <button
-                    onClick={() => removeImage(i)}
-                    className="absolute top-2 right-2 p-1 bg-ink/80 text-canvas rounded-full hover:bg-ink"
-                  >
-                    <X size={14} />
-                  </button>
-                  {/* Bottom: background removal actions */}
-                  {!bgRemovalProcessing.has(i) && (
-                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                      {bgRemovalDone.has(i) ? (
-                        <button
-                          onClick={() => undoBackgroundRemoval(i)}
-                          className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
-                        >
-                          <Undo2 size={12} />
-                          Undo
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => removeBackground(i)}
-                          className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
-                        >
-                          <Eraser size={12} />
-                          Remove BG
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-end mt-8">
-            <button
-              onClick={() => setStep('details')}
-              disabled={images.length === 0}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continue
-              <ArrowRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {step === 'details' && (
         <div className="card p-6 animate-slide-up">
           <h2 className="font-display text-xl mb-2">Item Details</h2>
-          <p className="text-muted mb-6">Describe your item and where you want to list it</p>
+          <p className="text-muted mb-6">Add photos, describe your item, and choose where to list</p>
 
           <div className="space-y-6">
+            {/* Photos */}
+            <div>
+              <label className="label">Photos</label>
+              <div
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                  images.length < 3 ? 'border-border hover:border-ink/30 cursor-pointer' : 'border-border/50'
+                }`}
+              >
+                {images.length < 3 && (
+                  <div className="space-y-3">
+                    <label className="cursor-pointer block">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        multiple
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <Upload size={28} className="mx-auto text-muted mb-2" />
+                      <p className="font-medium text-ink text-sm mb-1">Drop images here or click to upload</p>
+                      <p className="text-xs text-muted">JPEG, PNG, WebP, GIF • Up to 3 photos</p>
+                    </label>
+                    {cameraSupported && (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-px bg-border" />
+                          <span className="text-xs text-muted">or</span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCameraOpen(true)}
+                          className="btn-secondary mx-auto text-sm"
+                        >
+                          <Camera size={16} />
+                          Take Photo
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Image previews */}
+              {imageUrls.length > 0 && (
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  {imageUrls.map((url, i) => (
+                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-border group">
+                      <Image src={url} alt="" fill className="object-cover" />
+                      {bgRemovalProcessing.has(i) && (
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+                          <Loader2 size={24} className="text-white animate-spin" />
+                          <span className="text-white text-xs">Removing BG...</span>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => removeImage(i)}
+                        className="absolute top-2 right-2 p-1 bg-ink/80 text-canvas rounded-full hover:bg-ink"
+                      >
+                        <X size={14} />
+                      </button>
+                      {!bgRemovalProcessing.has(i) && (
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                          {bgRemovalDone.has(i) ? (
+                            <button
+                              onClick={() => undoBackgroundRemoval(i)}
+                              className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
+                            >
+                              <Undo2 size={12} />
+                              Undo
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => removeBackground(i)}
+                              className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
+                            >
+                              <Eraser size={12} />
+                              Remove BG
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Brief description */}
             <div>
               <label className="label">Brief Description</label>
@@ -526,14 +508,10 @@ export default function NewItemPage() {
             </div>
           </div>
 
-          <div className="flex justify-between mt-8">
-            <button onClick={() => setStep('images')} className="btn-secondary">
-              <ArrowLeft size={18} />
-              Back
-            </button>
+          <div className="flex justify-end mt-8">
             <button
               onClick={() => setStep('generate')}
-              disabled={!briefDescription.trim() || selectedPlatforms.length === 0}
+              disabled={images.length === 0 || !briefDescription.trim() || selectedPlatforms.length === 0}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue
