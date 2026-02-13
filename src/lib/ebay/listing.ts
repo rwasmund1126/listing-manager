@@ -1,6 +1,6 @@
 // eBay Inventory API helpers for creating and publishing listings
 
-import { ebayPost, ebayPut } from './client'
+import { ebayGet, ebayPost, ebayPut } from './client'
 import { EBAY_MARKETPLACE_ID } from './config'
 
 export interface EbayListingParams {
@@ -157,6 +157,60 @@ export async function createAndPublishListing(
   const { listingId } = await publishOffer(offerId)
 
   return { offerId, listingId }
+}
+
+/**
+ * Update an existing inventory item (title, description, images)
+ */
+export async function updateInventoryItem(
+  sku: string,
+  updates: { title?: string; description?: string; images?: string[] }
+): Promise<void> {
+  // Fetch current inventory item to merge updates
+  const current = await ebayGet<InventoryItem>(
+    `/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`
+  )
+
+  const updated: InventoryItem = {
+    ...current,
+    product: {
+      ...current.product,
+      ...(updates.title && { title: updates.title }),
+      ...(updates.description && { description: updates.description }),
+      ...(updates.images && { imageUrls: updates.images.slice(0, 12) }),
+    },
+  }
+
+  await ebayPut(`/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, updated)
+}
+
+/**
+ * Update an existing offer (price, description)
+ */
+export async function updateOffer(
+  offerId: string,
+  updates: { price?: number; description?: string }
+): Promise<void> {
+  // Fetch current offer to merge updates
+  const current = await ebayGet<Offer & { listingDuration: string }>(
+    `/sell/inventory/v1/offer/${offerId}`
+  )
+
+  const updated = {
+    ...current,
+    ...(updates.description && { listingDescription: updates.description }),
+    ...(updates.price && {
+      pricingSummary: {
+        ...current.pricingSummary,
+        price: {
+          value: updates.price.toFixed(2),
+          currency: 'USD',
+        },
+      },
+    }),
+  }
+
+  await ebayPut(`/sell/inventory/v1/offer/${offerId}`, updated)
 }
 
 /**

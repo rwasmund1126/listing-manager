@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, getImageUrl } from '@/lib/supabase'
 import {
   createAndPublishListing,
   mapConditionToEbay,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       price: price || listing.suggested_price,
       quantity: 1, // Default to 1 for now
       categoryId,
-      images: item.images || [],
+      images: (item.images || []).map(getImageUrl),
       format,
       duration: format === 'FIXED_PRICE' ? 'GTC' : duration || 'DAYS_7',
       startingBid: format === 'AUCTION' ? startingBid : undefined,
@@ -85,6 +85,8 @@ export async function POST(request: NextRequest) {
       .from('listings')
       .update({
         ebay_listing_id: ebayListingId,
+        ebay_offer_id: offerId,
+        ebay_sku: sku,
         listing_format: format.toLowerCase(),
         ebay_category_id: categoryId,
         auction_duration: format === 'AUCTION' ? parseInt(duration?.replace('DAYS_', '') || '7') : null,

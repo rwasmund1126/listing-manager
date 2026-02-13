@@ -193,6 +193,48 @@ export async function deleteTokens(): Promise<void> {
   }
 }
 
+// In-memory cache for application token (no user consent needed)
+let appTokenCache: { token: string; expiresAt: number } | null = null
+
+// Get an application access token using client credentials grant
+// Used for public APIs like Taxonomy (category search) that don't need user auth
+export async function getApplicationToken(): Promise<string> {
+  // Return cached token if still valid (with 5-minute buffer)
+  const bufferMs = 5 * 60 * 1000
+  if (appTokenCache && appTokenCache.expiresAt - bufferMs > Date.now()) {
+    return appTokenCache.token
+  }
+
+  const config = getEbayConfig()
+  const credentials = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
+
+  const response = await fetch(`${config.apiBaseUrl}/identity/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'https://api.ebay.com/oauth/api_scope',
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw parseEbayError(error, response.status)
+  }
+
+  const data: { access_token: string; expires_in: number } = await response.json()
+
+  appTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  }
+
+  return data.access_token
+}
+
 // Check if eBay account is connected and tokens are valid
 export async function getConnectionStatus(): Promise<{
   connected: boolean

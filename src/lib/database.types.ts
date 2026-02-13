@@ -34,6 +34,8 @@ export interface Listing {
   updated_at: string
   // eBay-specific fields
   ebay_listing_id?: string
+  ebay_offer_id?: string
+  ebay_sku?: string
   listing_format?: ListingFormat
   auction_duration?: AuctionDuration
   starting_bid?: number

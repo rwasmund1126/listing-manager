@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -12,7 +12,9 @@ import {
   Check,
   ExternalLink,
   Copy,
-  CheckCircle
+  CheckCircle,
+  Eraser,
+  Undo2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { ItemCondition, Platform } from '@/lib/database.types'
@@ -49,6 +51,79 @@ export default function NewItemPage() {
   const [generatedListings, setGeneratedListings] = useState<GeneratedListing[]>([])
   const [saving, setSaving] = useState(false)
   const [copiedPlatform, setCopiedPlatform] = useState<Platform | null>(null)
+
+  // Background removal state
+  const [bgRemovalProcessing, setBgRemovalProcessing] = useState<Set<number>>(new Set())
+  const [bgRemovalDone, setBgRemovalDone] = useState<Set<number>>(new Set())
+  const originalImages = useRef<Map<number, { file: File; url: string }>>(new Map())
+
+  const removeBackground = async (index: number) => {
+    setBgRemovalProcessing(prev => new Set(prev).add(index))
+
+    try {
+      // Dynamically import to avoid SSR issues and only load when needed
+      const { removeBackground: removeBg } = await import('@imgly/background-removal')
+
+      // Store original for undo
+      if (!originalImages.current.has(index)) {
+        originalImages.current.set(index, {
+          file: images[index],
+          url: imageUrls[index],
+        })
+      }
+
+      const blob = await removeBg(images[index], {
+        output: { format: 'image/png', quality: 0.9 },
+      })
+
+      const processedFile = new File(
+        [blob],
+        images[index].name.replace(/\.[^.]+$/, '.png'),
+        { type: 'image/png' }
+      )
+
+      const newImages = [...images]
+      newImages[index] = processedFile
+      setImages(newImages)
+
+      const newUrls = [...imageUrls]
+      URL.revokeObjectURL(newUrls[index])
+      newUrls[index] = URL.createObjectURL(processedFile)
+      setImageUrls(newUrls)
+
+      setBgRemovalDone(prev => new Set(prev).add(index))
+    } catch (err) {
+      console.error('Background removal failed:', err)
+      alert('Background removal failed. Please try again.')
+    } finally {
+      setBgRemovalProcessing(prev => {
+        const next = new Set(prev)
+        next.delete(index)
+        return next
+      })
+    }
+  }
+
+  const undoBackgroundRemoval = (index: number) => {
+    const original = originalImages.current.get(index)
+    if (!original) return
+
+    const newImages = [...images]
+    newImages[index] = original.file
+    setImages(newImages)
+
+    const newUrls = [...imageUrls]
+    URL.revokeObjectURL(newUrls[index])
+    newUrls[index] = original.url
+    setImageUrls(newUrls)
+
+    originalImages.current.delete(index)
+    setBgRemovalDone(prev => {
+      const next = new Set(prev)
+      next.delete(index)
+      return next
+    })
+  }
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const allFiles = Array.from(e.target.files || [])
@@ -292,14 +367,44 @@ export default function NewItemPage() {
           {imageUrls.length > 0 && (
             <div className="grid grid-cols-3 gap-4 mt-6">
               {imageUrls.map((url, i) => (
-                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-border">
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-border group">
                   <Image src={url} alt="" fill className="object-cover" />
+                  {/* Processing overlay */}
+                  {bgRemovalProcessing.has(i) && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+                      <Loader2 size={24} className="text-white animate-spin" />
+                      <span className="text-white text-xs">Removing BG...</span>
+                    </div>
+                  )}
+                  {/* Top-right: remove image */}
                   <button
                     onClick={() => removeImage(i)}
                     className="absolute top-2 right-2 p-1 bg-ink/80 text-canvas rounded-full hover:bg-ink"
                   >
                     <X size={14} />
                   </button>
+                  {/* Bottom: background removal actions */}
+                  {!bgRemovalProcessing.has(i) && (
+                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      {bgRemovalDone.has(i) ? (
+                        <button
+                          onClick={() => undoBackgroundRemoval(i)}
+                          className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
+                        >
+                          <Undo2 size={12} />
+                          Undo
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => removeBackground(i)}
+                          className="w-full flex items-center justify-center gap-1 text-xs text-white bg-white/20 rounded py-1 hover:bg-white/30"
+                        >
+                          <Eraser size={12} />
+                          Remove BG
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

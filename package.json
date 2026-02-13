@@ -11,6 +11,7 @@
     "setup": "cp -n .env.example .env.local && echo '✅ Created .env.local - fill in your credentials'"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "@supabase/supabase-js": "^2.39.0",
     "date-fns": "^3.3.1",
     "lucide-react": "^0.562.0",
