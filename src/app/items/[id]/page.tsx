@@ -360,11 +360,11 @@ export default function ItemDetailPage() {
 
       {/* Item info */}
       <div className="card p-6 mb-6">
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           {/* Images */}
           <div className="flex gap-2 flex-shrink-0">
             {item.images.map((img, i) => (
-              <div key={i} className="w-24 h-24 rounded-lg overflow-hidden relative bg-border">
+              <div key={i} className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden relative bg-border">
                 <Image
                   src={getImageUrl(img)}
                   alt=""
@@ -376,7 +376,7 @@ export default function ItemDetailPage() {
           </div>
 
           {/* Details */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h2 className="font-medium text-lg text-ink mb-2">{item.brief_description}</h2>
             <div className="flex flex-wrap gap-3 text-sm text-muted">
               <span className="flex items-center gap-1.5">
